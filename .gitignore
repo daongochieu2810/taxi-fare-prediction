@@ -1,2 +1,3 @@
 data/
 weather-data/
+__pycache__/
