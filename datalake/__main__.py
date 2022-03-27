@@ -7,7 +7,7 @@ spark = (
     .config("spark.sql.hive.convertMetastoreParquet", "false")
     .config(
         "spark.jars.packages",
-        "org.apache.hudi:hudi-spark3.0.3-bundle_2.12:0.10.1,org.apache.spark:spark-avro_2.12:3.0.3",
+        "org.apache.hudi:hudi-spark3.0.3-bundle_2.12:0.10.1,org.apache.spark:spark-avro_2.12:3.0.3,org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.1",
     )
     .getOrCreate()
 )
