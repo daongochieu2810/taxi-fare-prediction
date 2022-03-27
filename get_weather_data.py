@@ -1,3 +1,5 @@
+# We are not using this script anymore because we can get data directly from the FTP server
+# ftp://ftp.ncdc.noaa.gov/pub/data/
 import json
 import os
 from urllib.request import Request, urlopen
@@ -17,7 +19,8 @@ def request(url):
     return json.loads(content.decode("utf8"))
 
 
-def fetchData(dataset_id):
+def fetchData(dataset):
+    dataset_id = dataset["id"]
     save_path = "weather-data/{}/{}"
     for year in range(min_year, max_year):
         file_path = save_path.format(dataset_id, str(year) + ".txt")
@@ -26,7 +29,8 @@ def fetchData(dataset_id):
         params = "?datasetid={}&startdate={}&enddate={}".format(
             dataset_id, start_date, end_date
         )
-        data = request(base_url.format("/data") + params)
+        url = base_url.format("/data") + params
+        data = request(url)
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         f = open(file_path, "wb")
         f.write(data)
@@ -35,4 +39,4 @@ def fetchData(dataset_id):
 
 datasets = request(base_url.format("/datasets"))
 for dataset in datasets["results"]:
-    fetchData(dataset["id"])
+    fetchData(dataset)

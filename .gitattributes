@@ -1,0 +1,2 @@
+sample-data/2020/01/green_tripdata_2020-01.csv filter=lfs diff=lfs merge=lfs -text
+sample-data/2020/01/yellow_tripdata_2020-01.csv filter=lfs diff=lfs merge=lfs -text

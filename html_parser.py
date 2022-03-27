@@ -11,5 +11,5 @@ class SimpleHTMLParser(HTMLParser):
                 if attr[0] == "href":
                     link = attr[1]
                     break
-        if link != "" and ".csv" in link and "trip+data" in link:
+        if link != "" and ".csv" in link and "trip+data" in link and "fhv" not in link:
             self.links.append(link)
