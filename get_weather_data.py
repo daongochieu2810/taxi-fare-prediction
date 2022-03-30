@@ -1,42 +1,83 @@
-# We are not using this script anymore because we can get data directly from the FTP server
-# ftp://ftp.ncdc.noaa.gov/pub/data/
-import json
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+import time
 import os
-from urllib.request import Request, urlopen
 
-base_url = "https://www.ncdc.noaa.gov/cdo-web/api/v2{}"
-token = "rEAdHwCdGfjVdOixBpLgrlSNLoWYDOaG"
-base_date = "{}-{}-{}"
-min_year = 2009
-max_year = 2021
+save_path = "weather-data/{}_{}.txt"
+driver = webdriver.Firefox()
+url = "https://nowdata.rcc-acis.org/okx/"
+driver.get(url)
 
+time.sleep(5)
 
-def request(url):
-    req = Request(url)
-    req.add_header("token", token)
-    content = urlopen(req).read()
+datePicker = driver.find_element_by_id("tDatepicker")
+locationSelect = driver.find_element_by_name("station")
+goButton = driver.find_element_by_id("go")
+results = driver.find_element_by_id("results_area")
+calenderButton = driver.find_element_by_class_name("ui-datepicker-trigger")
 
-    return json.loads(content.decode("utf8"))
+columns = [
+    "date",
+    "tempMax",
+    "tempMin",
+    "tempAvg",
+    "tempDeparture",
+    "hdd",
+    "cdd",
+    "precipitation",
+    "newSnow",
+    "snowDepth",
+]
+options = locationSelect.find_elements_by_css_selector("option")
+for year in range(2016, 2022):
+    for i in range(1, 13):
+        month = str(i)
+        if i < 10:
+            month = "0" + str(i)
 
+        datePicker.clear()
+        datePicker.send_keys(str(year) + "-" + month)
+        webdriver.ActionChains(driver).send_keys(Keys.TAB).perform()
+        time.sleep(0.5)
 
-def fetchData(dataset):
-    dataset_id = dataset["id"]
-    save_path = "weather-data/{}/{}"
-    for year in range(min_year, max_year):
-        file_path = save_path.format(dataset_id, str(year) + ".txt")
-        start_date = base_date.format(year, "01", "01")
-        end_date = base_date.format(year + 1, "01", "01")
-        params = "?datasetid={}&startdate={}&enddate={}".format(
-            dataset_id, start_date, end_date
-        )
-        url = base_url.format("/data") + params
-        data = request(url)
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        f = open(file_path, "wb")
-        f.write(data)
+        dateData = {}
+        for optionId in range(len(options)):
+            option = options[optionId]
+            if "NY" not in option.text:
+                continue
+            stationData = []
+            try:
+                option.click()
+                goButton.click()
+                time.sleep(5)
+
+                table = results.find_element_by_css_selector("table")
+                body = results.find_element_by_css_selector("tbody")
+                rows = body.find_elements_by_css_selector("tr")
+                for row in rows:
+                    tds = row.find_elements_by_css_selector("td")
+                    rowData = {}
+                    for tdId in range(len(tds)):
+                        td = tds[tdId]
+                        rowData[columns[tdId]] = td.text
+                    stationData.append(rowData)
+                dateData[option.text] = stationData
+            except Exception as e:
+                print(e)
+                print("Error! with " + str(year) + "-" + month + " and " + option.text)
+            webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+            time.sleep(0.5)
+            webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+            time.sleep(0.5)
+            webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+            time.sleep(0.5)
+            webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+            time.sleep(0.5)
+
+        save_file = save_path.format(year, month)
+        os.makedirs(os.path.dirname(save_file), exist_ok=True)
+        f = open(save_file, "w")
+        f.write(str(dateData))
         f.close()
 
-
-datasets = request(base_url.format("/datasets"))
-for dataset in datasets["results"]:
-    fetchData(dataset)
+driver.close()

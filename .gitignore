@@ -1,3 +1,4 @@
 data/
 weather-data/
 __pycache__/
+geckodriver.log
