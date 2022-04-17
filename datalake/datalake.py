@@ -1,71 +1,97 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import lit
 
-from datalake.gateway import Gateway
+from datetime import datetime
 
-# input_df = spark.createDataFrame(
-#     [
-#         ("100", "2015-01-01", "2015-01-01T13:51:39.340396Z"),
-#         ("101", "2015-01-01", "2015-01-01T12:14:58.597216Z"),
-#         ("102", "2015-01-01", "2015-01-01T13:51:40.417052Z"),
-#         ("103", "2015-01-01", "2015-01-01T13:51:40.519832Z"),
-#         ("104", "2015-01-02", "2015-01-01T12:15:00.512679Z"),
-#         ("105", "2015-01-02", "2015-01-01T13:51:42.248818Z"),
-#     ],
-#     ("id", "creation_date", "last_update_time"),
-# )
+# General Constants
+HUDI_FORMAT = "org.apache.hudi"
+TABLE_NAME = "hoodie.table.name"
+RECORDKEY_FIELD_OPT_KEY = "hoodie.datasource.write.recordkey.field"
+PRECOMBINE_FIELD_OPT_KEY = "hoodie.datasource.write.precombine.field"
+OPERATION_OPT_KEY = "hoodie.datasource.write.operation"
+BULK_INSERT_OPERATION_OPT_VAL = "bulk_insert"
+UPSERT_OPERATION_OPT_VAL = "upsert"
+BULK_INSERT_PARALLELISM = "hoodie.bulkinsert.shuffle.parallelism"
+UPSERT_PARALLELISM = "hoodie.upsert.shuffle.parallelism"
+HUDI_CLEANER_POLICY = "hoodie.cleaner.policy"
+KEEP_LATEST_COMMITS = "KEEP_LATEST_COMMITS"
+HUDI_COMMITS_RETAINED = "hoodie.cleaner.commits.retained"
+PAYLOAD_CLASS_OPT_KEY = "hoodie.datasource.write.payload.class"
+EMPTY_PAYLOAD_CLASS_OPT_VAL = "org.apache.hudi.common.model.EmptyHoodieRecordPayload"
+
+# Partition Constants
+NONPARTITION_EXTRACTOR_CLASS_OPT_VAL = "org.apache.hudi.hive.NonPartitionedExtractor"
+MULIPART_KEYS_EXTRACTOR_CLASS_OPT_VAL = (
+    "org.apache.hudi.hive.MultiPartKeysValueExtractor"
+)
+KEYGENERATOR_CLASS_OPT_KEY = "hoodie.datasource.write.keygenerator.class"
+NONPARTITIONED_KEYGENERATOR_CLASS_OPT_VAL = (
+    "org.apache.hudi.keygen.NonpartitionedKeyGenerator"
+)
+COMPLEX_KEYGENERATOR_CLASS_OPT_VAL = "org.apache.hudi.ComplexKeyGenerator"
+PARTITIONPATH_FIELD_OPT_KEY = "hoodie.datasource.write.partitionpath.field"
 
 
 class DataLake:
+    config = {
+        "primary_key": "id",
+        "sort_key": "sk",
+    }
+
     def __init__(self):
         self.spark = (
             SparkSession.builder.appName("Hudi_Data_Processing_Framework")
             .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-            .config("spark.sql.hive.convertMetastoreParquet", "false")
             .config(
                 "spark.jars.packages",
                 "org.apache.hudi:hudi-spark3.0.3-bundle_2.12:0.10.1,org.apache.spark:spark-avro_2.12:3.0.3,org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.1",
             )
+            .config("spark.sql.hive.convertMetastoreParquet", "false")
+            .config("spark.sql.hive.metastore.sharedPrefixes", "org.apache.derby")
+            .config("hive.metastore.uris", "thrift://localhost:9083")
+            .enableHiveSupport()
             .getOrCreate()
         )
 
-        self.hudi_options = {
-            # ---------------DATA SOURCE WRITE CONFIGS---------------#
-            "hoodie.table.name": "hudi_test",
-            "hoodie.datasource.write.recordkey.field": "id",
-            "hoodie.datasource.write.precombine.field": "last_update_time",
-            "hoodie.datasource.write.partitionpath.field": "creation_date",
-            "hoodie.datasource.write.hive_style_partitioning": "true",
-            "hoodie.upsert.shuffle.parallelism": 1,
-            "hoodie.insert.shuffle.parallelism": 1,
-            "hoodie.consistency.check.enabled": True,
-            "hoodie.index.type": "BLOOM",
-            "hoodie.index.bloom.num_entries": 60000,
-            "hoodie.index.bloom.fpp": 0.000000001,
-            "hoodie.cleaner.commits.retained": 2,
-        }
+        self.spark.sql("create database if not exists maindb")
+        self.spark.sql("use maindb")
 
-        self.gateway = Gateway(self.spark)
+    ## Generates Data
+    def get_json_data(self, start, count, increment=0):
+        now = str(datetime.today().replace(microsecond=0))
+        data = [
+            {
+                "id": i,
+                "sk": i + increment,
+                "txt": chr(65 + (i % 26)),
+                "modified_time": now,
+            }
+            for i in range(start, start + count)
+        ]
+        return data
 
-    def insert(self, df):
+    # Creates the Dataframe
+    def create_json_df(self, data):
+        sc = self.spark.sparkContext
+        return self.spark.read.json(sc.parallelize(data, 2))
+
+    def readAllFromTable(self, table_name):
+        return self.spark.sql("select * from " + table_name)
+
+    def execRawSql(self, sqlScript):
+        return self.spark.sql(sqlScript)
+
+    def upsert(self, df, table_name):
+        config = self.config
         (
-            df.write.format("org.apache.hudi")
-            .options(**self.hudi_options)
-            .mode("append")
-            .save("/tmp/hudi_test")
+            df.write.format(HUDI_FORMAT)
+            .option(PRECOMBINE_FIELD_OPT_KEY, config["sort_key"])
+            .option(RECORDKEY_FIELD_OPT_KEY, config["primary_key"])
+            .option(TABLE_NAME, table_name)
+            .option(OPERATION_OPT_KEY, BULK_INSERT_OPERATION_OPT_VAL)
+            .option(BULK_INSERT_PARALLELISM, 3)
+            .option(
+                KEYGENERATOR_CLASS_OPT_KEY, NONPARTITIONED_KEYGENERATOR_CLASS_OPT_VAL
+            )
+            .mode("overwrite")
+            .saveAsTable("maindb." + table_name)
         )
-
-    def update(self, df):
-        update_df = df.limit(1).withColumn(
-            "last_update_time", lit("2016-01-01T13:51:39.340396Z")
-        )
-        (
-            update_df.write.format("org.apache.hudi")
-            .options(**self.hudi_options)
-            .mode("append")
-            .save("/tmp/hudi_test")
-        )
-
-    def read(self):
-        output_df = self.spark.read.format("org.apache.hudi").load("/tmp/hudi_test/*/*")
-        output_df.show()

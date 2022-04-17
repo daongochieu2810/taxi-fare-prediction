@@ -2,3 +2,5 @@ data/
 weather-data/
 __pycache__/
 geckodriver.log
+spark-warehouse/
+derby.log
