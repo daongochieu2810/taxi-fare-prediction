@@ -5,7 +5,7 @@ from pyspark.sql import SparkSession
 from pyspark.ml.regression import RandomForestRegressionModel
 
 spark = SparkSession.builder.appName("rf_exmaple").getOrCreate()
-data = spark.read.csv("data/dummy_data.csv", inferSchema=True, header=True)
+data = spark.read.csv("./data/dummy_data.csv", inferSchema=True, header=True)
 data.printSchema()
 
 from pyspark.ml.feature import VectorAssembler
