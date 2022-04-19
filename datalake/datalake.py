@@ -1,7 +1,5 @@
 from pyspark.sql import SparkSession
 
-from datetime import datetime
-
 # General Constants
 HUDI_FORMAT = "org.apache.hudi"
 TABLE_NAME = "hoodie.table.name"
@@ -17,7 +15,8 @@ KEEP_LATEST_COMMITS = "KEEP_LATEST_COMMITS"
 HUDI_COMMITS_RETAINED = "hoodie.cleaner.commits.retained"
 PAYLOAD_CLASS_OPT_KEY = "hoodie.datasource.write.payload.class"
 EMPTY_PAYLOAD_CLASS_OPT_VAL = "org.apache.hudi.common.model.EmptyHoodieRecordPayload"
-# Partition Constants NONPARTITION_EXTRACTOR_CLASS_OPT_VAL = "org.apache.hudi.hive.NonPartitionedExtractor"
+# Partition Constants
+NONPARTITION_EXTRACTOR_CLASS_OPT_VAL = "org.apache.hudi.hive.NonPartitionedExtractor"
 MULIPART_KEYS_EXTRACTOR_CLASS_OPT_VAL = (
     "org.apache.hudi.hive.MultiPartKeysValueExtractor"
 )
@@ -32,7 +31,7 @@ PARTITIONPATH_FIELD_OPT_KEY = "hoodie.datasource.write.partitionpath.field"
 class DataLake:
     config = {
         "primary_key": "id",
-        "sort_key": "sk",
+        "sort_key": "id",
     }
 
     def __init__(self):
@@ -46,31 +45,14 @@ class DataLake:
             .config("spark.sql.hive.convertMetastoreParquet", "false")
             .config("spark.sql.hive.metastore.sharedPrefixes", "org.apache.derby")
             .config("hive.metastore.uris", "thrift://localhost:9083")
+            .config("spark.sql.analyzer.failAmbiguousSelfJoin", "false")
             .enableHiveSupport()
             .getOrCreate()
         )
+        self.spark.sparkContext.addPyFile("./datalake/merger.py")
 
         self.spark.sql("create database if not exists maindb")
         self.spark.sql("use maindb")
-
-    ## Generates Data
-    def get_json_data(self, start, count, increment=0):
-        now = str(datetime.today().replace(microsecond=0))
-        data = [
-            {
-                "id": i,
-                "sk": i + increment,
-                "txt": chr(65 + (i % 26)),
-                "modified_time": now,
-            }
-            for i in range(start, start + count)
-        ]
-        return data
-
-    # Creates the Dataframe
-    def create_json_df(self, data):
-        sc = self.spark.sparkContext
-        return self.spark.read.json(sc.parallelize(data, 2))
 
     def readAllFromTable(self, table_name):
         return self.spark.sql("select * from " + table_name)
@@ -90,6 +72,6 @@ class DataLake:
             .option(
                 KEYGENERATOR_CLASS_OPT_KEY, NONPARTITIONED_KEYGENERATOR_CLASS_OPT_VAL
             )
-            .mode("overwrite")
+            .mode("append")
             .saveAsTable("maindb." + table_name)
         )

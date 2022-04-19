@@ -3,25 +3,24 @@ from pyspark.sql.types import Row
 import requests
 from urllib.parse import quote_plus
 from datetime import datetime
-from geopy.distance import geodesic 
-from typing import Optional
+from geopy.distance import geodesic
+from typing import Optional, Tuple
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from dotenv import load_dotenv  # type: ignore
+from dotenv import load_dotenv
 
 load_dotenv()
 api_key = os.getenv("MAPS_API_KEY")
 
 
 class Merger:
-
     spark: SparkSession
     weather_df: Optional[DataFrame]
     taxi_df: Optional[DataFrame]
     merged_df: Optional[DataFrame]
 
     @staticmethod
-    def get_geocode(area: str) -> tuple[int, int]:
+    def get_geocode(area: str) -> Tuple[int, int]:
         area = quote_plus(area)
         url = f"https://maps.googleapis.com/maps/api/geocode/json?address={area}&key={api_key}"
 
@@ -32,8 +31,8 @@ class Merger:
 
         return (res["lat"], res["lng"])
 
-    def __init__(self):
-        self.spark = SparkSession.builder.appName("join").getOrCreate()
+    def __init__(self, sparkSession):
+        self.spark = sparkSession
 
         # add spark dependencies
         self.spark.sparkContext.addPyFile(
@@ -97,9 +96,12 @@ class Merger:
             lat, lon = shared_get_geocode.value(row["Zone"])
             return Row(**{"lat": lat, "lon": lon, "LocationID": row["LocationID"]})
 
-        lookup_df = self.spark.read.csv(
-            "sample-data/taxi_zone_lookup.csv", header=True
-        ).select(["LocationID", "Zone"]).rdd.map(map_to_lat_lon).toDF()
+        lookup_df = (
+            self.spark.read.csv("./sample-data/taxi_zone_lookup.csv", header=True)
+            .select(["LocationID", "Zone"])
+            .rdd.map(map_to_lat_lon)
+            .toDF()
+        )
 
         lookup_pu_df = (
             lookup_df.alias("lookup_pu_df")
@@ -130,20 +132,24 @@ class Merger:
         shared_weather_list = self.spark.sparkContext.broadcast(weather_list)
 
         def augment_with_weather_data(row: Row):
-            matched_row: list[Row] = list(filter(lambda w: w.date == row.date, shared_weather_list.value))
+            matched_row: list[Row] = list(
+                filter(lambda w: w.date == row.date, shared_weather_list.value)
+            )
 
             if len(matched_row) == 0:
                 return row
 
-            min_row: Row = Row() 
+            min_row: Row = Row()
             min_dist = float("inf")
 
             for other in matched_row:
                 dist = geodesic((other.lat, other.lon), (row.PU_lat, row.PU_lon))
                 if dist < min_dist:
                     min_dist = dist
-                    min_row = other 
+                    min_row = other
 
             return Row(**{**row.asDict(), **min_row.asDict()})
 
-        self.merged_df = self.taxi_df.rdd.map(augment_with_weather_data).toDF(sampleRatio=0.01)
+        self.merged_df = self.taxi_df.rdd.map(augment_with_weather_data).toDF(
+            sampleRatio=0.01
+        )
