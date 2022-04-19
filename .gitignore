@@ -4,3 +4,4 @@ __pycache__/
 geckodriver.log
 spark-warehouse/
 derby.log
+.env

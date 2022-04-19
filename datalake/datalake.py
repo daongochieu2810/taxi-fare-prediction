@@ -17,9 +17,7 @@ KEEP_LATEST_COMMITS = "KEEP_LATEST_COMMITS"
 HUDI_COMMITS_RETAINED = "hoodie.cleaner.commits.retained"
 PAYLOAD_CLASS_OPT_KEY = "hoodie.datasource.write.payload.class"
 EMPTY_PAYLOAD_CLASS_OPT_VAL = "org.apache.hudi.common.model.EmptyHoodieRecordPayload"
-
-# Partition Constants
-NONPARTITION_EXTRACTOR_CLASS_OPT_VAL = "org.apache.hudi.hive.NonPartitionedExtractor"
+# Partition Constants NONPARTITION_EXTRACTOR_CLASS_OPT_VAL = "org.apache.hudi.hive.NonPartitionedExtractor"
 MULIPART_KEYS_EXTRACTOR_CLASS_OPT_VAL = (
     "org.apache.hudi.hive.MultiPartKeysValueExtractor"
 )
