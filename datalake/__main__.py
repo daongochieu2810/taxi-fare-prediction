@@ -26,10 +26,9 @@ def preprocess(datalake):
                 )
                 mergerInstance.join()
                 mergerInstance.merged_df.withColumn("id", monotonically_increasing_id())
-                print("------------------------")
-                mergerInstance.merged_df.show(10, False)
-                print("------------------------")
-                datalake.upsert(mergerInstance.merged_df, "taxi_and_weather")
+                dfToSave = mergerInstance.merged_df.na.drop()
+                datalake.upsert(dfToSave, "taxi_and_weather")
+                break
         break
         if year == 2021 and month == 7:
             break
