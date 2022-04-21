@@ -60,12 +60,10 @@ def preprocess_data(params):
 
     # generate dummy data
     df_taxi_filtered = df_taxi \
-        .withColumn("traffic", randn(seed=42)) \
         .withColumn("weather", randn(seed=42)) \
-        .withColumn("demand", rand(seed=42)) \
         .select(df_taxi.trip_distance.cast('double'), 
                 df_taxi.passenger_count.cast('integer'), 
-                "traffic", "weather", "demand", 
+                "weather", 
                 df_taxi.total_amount.cast('double').alias("fare")) \
         .dropna()
 
@@ -74,7 +72,7 @@ def preprocess_data(params):
 
     # create pipeline for scaling train and test data
     # inputCols: features to be used for training and prediction
-    flatten_assembler = VectorAssembler(inputCols=["trip_distance", "passenger_count", "traffic", "weather", "demand"], outputCol="unscaled_features") # flatten into 1 col
+    flatten_assembler = VectorAssembler(inputCols=["trip_distance", "passenger_count", "weather"], outputCol="unscaled_features") # flatten into 1 col
     std_scaler = StandardScaler(inputCol="unscaled_features", outputCol="standardised_features", withMean=True, withStd=True,)
     min_max_scaler = MinMaxScaler(inputCol="standardised_features", outputCol="scaled_features") # default: min=0.0, max=1.0
     preproc_pipeline = Pipeline(stages=[flatten_assembler, std_scaler, min_max_scaler])
