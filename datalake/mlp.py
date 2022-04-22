@@ -3,6 +3,14 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+# spark imports
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import *
+from pyspark.ml.feature import VectorAssembler, StandardScaler, MinMaxScaler
+from pyspark.ml import Pipeline
+from pyspark.sql.types import DoubleType
+
+# tensorflow imports
 import tensorflow as tf
 from tensorflow.python.keras import Model
 from tensorflow.python.keras.models import Sequential
@@ -16,8 +24,101 @@ from tensorflow.python.keras.callbacks import (
     CSVLogger,
 )
 
-# fix random seed for reproducibility
-tf.random.set_seed(42)
+
+inputCols = [
+    "PULocationID",
+    "DOLocationID",
+    "passenger_count",
+    "trip_distance",
+    "fare_amount",
+    "extra",
+    "mta_tax",
+    "tip_amount",
+    "tolls_amount",
+    "improvement_surcharge",
+    "total_amount",
+    "payment_type",
+    "trip_type",
+    "weather",
+]
+
+
+def run(df):
+    # params for preprocessing and learning
+    filepath = os.path.dirname(os.path.realpath(__file__))
+    params = {
+        "save_dir": os.path.join(
+            filepath, "./results"
+        ),  # directory for storing processed data, predictions and plots
+        "epochs": 5,
+        "batch_size": 64,
+        "learning_rate": 0.001,
+        "hidden_units": 32,  # number of units for each MLP layer
+    }
+
+    if not os.path.exists(params["save_dir"]):
+        os.makedirs(os.path.abspath(params["save_dir"]))
+
+    # spark job to preprocess data
+    preprocess_data(params, df)
+
+    # distributed training and inference
+    mlp_model = MLP(params)
+    mlp_model.train_model()
+    mlp_model.model_inference()
+    mlp_model.calculate_rmse()
+    print("MLP training and model inference done!")
+
+
+def preprocess_data(params, spark, df):
+    save_dir = params["save_dir"]
+
+    data_modified = df.withColumnRenamed("tempAvg", "weather")
+    df_taxi = data_modified.select(
+        [col(c).cast(DoubleType()) for c in data_modified.columns]
+    )
+
+    df_taxi_filtered = df_taxi.select(
+        df_taxi.trip_distance.cast("double"),
+        df_taxi.passenger_count.cast("integer"),
+        "weather",
+        df_taxi.total_amount.cast("double").alias("fare"),
+    ).dropna()
+
+    # split into train, test data
+    df_train, df_test = df_taxi_filtered.randomSplit([0.8, 0.2], seed=42)
+
+    # create pipeline for scaling train and test data
+    # inputCols: features to be used for training and prediction
+    flatten_assembler = VectorAssembler(
+        inputCols=["trip_distance", "passenger_count", "weather"],
+        outputCol="unscaled_features",
+    )  # flatten into 1 col
+    std_scaler = StandardScaler(
+        inputCol="unscaled_features",
+        outputCol="standardised_features",
+        withMean=True,
+        withStd=True,
+    )
+    min_max_scaler = MinMaxScaler(
+        inputCol="standardised_features", outputCol="scaled_features"
+    )  # default: min=0.0, max=1.0
+    preproc_pipeline = Pipeline(stages=[flatten_assembler, std_scaler, min_max_scaler])
+
+    # scale train and test data using train stats
+    preproc_pipeline_model = preproc_pipeline.fit(df_train)
+    df_train_scaled = preproc_pipeline_model.transform(df_train)
+    df_test_scaled = preproc_pipeline_model.transform(df_test)
+
+    # save processed data
+    df_train_scaled.repartition(1).write.parquet(
+        os.path.join(save_dir, "train_data"), mode="overwrite"
+    )
+    df_test_scaled.repartition(1).write.parquet(
+        os.path.join(save_dir, "test_data"), mode="overwrite"
+    )
+
+    spark.stop()
 
 
 class MLP(Model):
