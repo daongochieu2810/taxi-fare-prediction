@@ -4,7 +4,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # spark imports
-from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.ml.feature import VectorAssembler, StandardScaler, MinMaxScaler
 from pyspark.ml import Pipeline
@@ -12,12 +11,12 @@ from pyspark.sql.types import DoubleType
 
 # tensorflow imports
 import tensorflow as tf
-from tensorflow.python.keras import Model
-from tensorflow.python.keras.models import Sequential
-from tensorflow.python.keras.layers import Dense
-from tensorflow.python.keras.optimizers import Adam
-from tensorflow.python.keras.metrics import RootMeanSquaredError
-from tensorflow.python.keras.callbacks import (
+from tensorflow.keras import Model
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.metrics import RootMeanSquaredError
+from tensorflow.keras.callbacks import (
     ModelCheckpoint,
     EarlyStopping,
     ReduceLROnPlateau,
@@ -70,7 +69,7 @@ def run(df):
     print("MLP training and model inference done!")
 
 
-def preprocess_data(params, spark, df):
+def preprocess_data(params, df):
     save_dir = params["save_dir"]
 
     data_modified = df.withColumnRenamed("tempAvg", "weather")
@@ -117,8 +116,6 @@ def preprocess_data(params, spark, df):
     df_test_scaled.repartition(1).write.parquet(
         os.path.join(save_dir, "test_data"), mode="overwrite"
     )
-
-    spark.stop()
 
 
 class MLP(Model):

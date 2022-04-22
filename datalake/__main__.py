@@ -1,6 +1,7 @@
 from datalake import DataLake
 import lgbm
 import linear_regression
+import mlp
 from merger import Merger
 from pyspark.sql.functions import monotonically_increasing_id
 import os
@@ -23,8 +24,8 @@ def preprocess_demo(datalake):
         "id", monotonically_increasing_id()
     )
 
-    mergerInstance.merged_df.printSchema()
-    mergerInstance.merged_df.show(10)
+    # mergerInstance.merged_df.printSchema()
+    # mergerInstance.merged_df.show(10)
     return mergerInstance.merged_df
 
 
@@ -63,5 +64,6 @@ def preprocess(datalake):
 if __name__ == "__main__":
     datalake = DataLake()
     df = preprocess_demo(datalake)
-    linear_regression.run(df)
-    lgbm.run(df)
+    # linear_regression.run(df)
+    # lgbm.run(df)
+    mlp.run(df)

@@ -1,4 +1,3 @@
-from pyspark.sql import SparkSession
 from pyspark.ml.regression import LinearRegression
 from pyspark.ml.feature import VectorAssembler
 import pyspark.sql.functions as F
@@ -51,12 +50,14 @@ def run(data):
         outputCol="features",
     )
     output = assembler.transform(data_modified)
+    # output.show(10)
     final_data = output.select("features", "total_amount")
+    final_data.select("features").show(10, False)
     train_data, test_data = final_data.randomSplit([0.7, 0.3])
     lr = LinearRegression(labelCol="total_amount")
-    lr_model = lr.fit(train_data)
-    test_results = lr_model.evaluate(test_data)
-    test_results.residuals.show()
-    test_results.rootMeanSquaredError
-    test_results.r2
-    final_data.describe().show()
+    # lr_model = lr.fit(train_data)
+    # test_results = lr_model.evaluate(test_data)
+    # test_results.residuals.show()
+    # test_results.rootMeanSquaredError
+    # test_results.r2
+    # final_data.describe().show()

@@ -52,6 +52,7 @@ class DataLake:
         self.spark.sparkContext.addPyFile("./datalake/merger.py")
         self.spark.sparkContext.addPyFile("./datalake/lgbm.py")
         self.spark.sparkContext.addPyFile("./datalake/linear_regression.py")
+        self.spark.sparkContext.addPyFile("./datalake/mlp.py")
 
         self.spark.sql("create database if not exists maindb")
         self.spark.sql("use maindb")

@@ -74,7 +74,7 @@ class Merger:
             return ret
 
         self.weather_df = self.weather_df.rdd.flatMap(loc_to_loc_rows).toDF()
-        # self.weather_df.show(10)
+        self.weather_df = self.weather_df.na.fill(0)
 
     def load_taxi_data(self, path: str):
         self.taxi_df = self.spark.read.csv(path, header=True)
@@ -127,7 +127,7 @@ class Merger:
             self.taxi_df.DOLocationID == lookup_do_df.LocationID,
         )
 
-        # self.taxi_df.show(10)
+        self.taxi_df = self.taxi_df.na.fill(0)
 
     def join(self):
         assert self.weather_df is not None
@@ -156,6 +156,8 @@ class Merger:
 
             return Row(**{**row.asDict(), **min_row.asDict()})
 
-        self.merged_df = self.taxi_df.rdd.map(augment_with_weather_data).toDF(
-            sampleRatio=0.01
+        self.merged_df = (
+            self.taxi_df.rdd.map(augment_with_weather_data)
+            .toDF(sampleRatio=0.01)
+            .na.fill(0)
         )
