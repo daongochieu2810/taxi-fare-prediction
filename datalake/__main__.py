@@ -64,6 +64,9 @@ def preprocess(datalake):
 if __name__ == "__main__":
     datalake = DataLake()
     df = preprocess_demo(datalake)
-    # linear_regression.run(df)
-    # lgbm.run(df)
-    mlp.run(df)
+    print("--------------------Linear Regression--------------")
+    linear_regression.run(datalake.spark, df)
+    print("--------------------LGBM--------------")
+    lgbm.run(datalake.spark, df)
+    print("--------------------MLP--------------")
+    mlp.run(datalake.spark, df)

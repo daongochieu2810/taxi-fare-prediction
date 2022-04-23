@@ -1,4 +1,4 @@
-from pyspark.ml.regression import RandomForestRegressionModel
+from pyspark.ml.regression import RandomForestRegressor
 from pyspark.ml.feature import VectorAssembler
 import pyspark.sql.functions as F
 from pyspark.sql.functions import col
@@ -35,7 +35,7 @@ def getTripDuration(datetime_start, datetime_end):
         return 0
 
 
-def run(data):
+def run(spark, data):
     data_modified = data.withColumnRenamed("tempAvg", "weather")
     data_modified = data_modified.select(
         [col(c).cast(DoubleType()) for c in data_modified.columns]
@@ -47,9 +47,6 @@ def run(data):
         "trip_duration",
         tripDurationFunction("lpep_pickup_datetime", "lpep_dropoff_datetime"),
     )
-    data_modified.show(3)
-
-    # print(data_modified.columns)
 
     assembler = VectorAssembler(
         inputCols=inputCols,
@@ -59,21 +56,15 @@ def run(data):
     output.head(1)
 
     final_data = output.select("features", "total_amount")
-    final_data.show()
+    final_data = spark.createDataFrame(final_data.limit(20).collect())
 
     train_data, test_data = final_data.randomSplit([0.8, 0.2])
 
     train_data.describe().show()
     test_data.describe().show()
 
-    rf = RandomForestRegressionModel(featuresCol="features", labelCol="total_amount")
+    rf = RandomForestRegressor(featuresCol="features", labelCol="total_amount")
     rf_model = rf.fit(train_data)
-
-    test_results = rf_model.evaluate(test_data)
-
-    test_results.residuals.show()
-    test_results.rootMeanSquaredError
-    test_results.r2
 
     predictions = rf_model.transform(test_data)
     predictions.show(25)

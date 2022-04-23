@@ -22,6 +22,8 @@ inputCols = [
     "weather",
 ]
 
+dateCols = ["lpep_pickup_datetime", "lpep_dropoff_datetime"]
+
 
 def getTripDuration(datetime_start, datetime_end):
     try:
@@ -34,10 +36,10 @@ def getTripDuration(datetime_start, datetime_end):
         return 0
 
 
-def run(data):
+def run(spark, data):
     data_modified = data.withColumnRenamed("tempAvg", "weather")
     data_modified = data_modified.select(
-        [col(c).cast(DoubleType()) for c in data_modified.columns]
+        [col(c).cast(DoubleType()) for c in inputCols] + [col(c) for c in dateCols]
     )
 
     tripDurationFunction = F.udf(getTripDuration, DoubleType())
@@ -50,14 +52,15 @@ def run(data):
         outputCol="features",
     )
     output = assembler.transform(data_modified)
-    # output.show(10)
     final_data = output.select("features", "total_amount")
-    final_data.select("features").show(10, False)
+    final_data = spark.createDataFrame(final_data.limit(20).collect())
     train_data, test_data = final_data.randomSplit([0.7, 0.3])
-    lr = LinearRegression(labelCol="total_amount")
-    # lr_model = lr.fit(train_data)
-    # test_results = lr_model.evaluate(test_data)
-    # test_results.residuals.show()
-    # test_results.rootMeanSquaredError
-    # test_results.r2
-    # final_data.describe().show()
+    lr = LinearRegression(
+        featuresCol="features", labelCol="total_amount", regParam=0.0, solver="normal"
+    )
+    lr_model = lr.fit(train_data)
+    test_results = lr_model.evaluate(test_data)
+    test_results.residuals.show()
+    test_results.rootMeanSquaredError
+    test_results.r2
+    final_data.describe().show()

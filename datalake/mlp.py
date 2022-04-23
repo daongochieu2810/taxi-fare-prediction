@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -42,7 +43,15 @@ inputCols = [
 ]
 
 
-def run(df):
+class DevNull:
+    def write(self, msg):
+        pass
+
+
+sys.stderr = DevNull()
+
+
+def run(spark, df):
     # params for preprocessing and learning
     filepath = os.path.dirname(os.path.realpath(__file__))
     params = {
@@ -59,7 +68,7 @@ def run(df):
         os.makedirs(os.path.abspath(params["save_dir"]))
 
     # spark job to preprocess data
-    preprocess_data(params, df)
+    preprocess_data(spark, params, df)
 
     # distributed training and inference
     mlp_model = MLP(params)
@@ -69,7 +78,7 @@ def run(df):
     print("MLP training and model inference done!")
 
 
-def preprocess_data(params, df):
+def preprocess_data(spark, params, df):
     save_dir = params["save_dir"]
 
     data_modified = df.withColumnRenamed("tempAvg", "weather")
@@ -82,9 +91,10 @@ def preprocess_data(params, df):
         df_taxi.passenger_count.cast("integer"),
         "weather",
         df_taxi.total_amount.cast("double").alias("fare"),
-    ).dropna()
+    )
 
     # split into train, test data
+    df_taxi_filtered = spark.createDataFrame(df_taxi_filtered.limit(20).collect())
     df_train, df_test = df_taxi_filtered.randomSplit([0.8, 0.2], seed=42)
 
     # create pipeline for scaling train and test data
