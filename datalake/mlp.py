@@ -48,7 +48,7 @@ class DevNull:
         pass
 
 
-sys.stderr = DevNull()
+#sys.stderr = DevNull()
 
 
 def run(spark, df):
@@ -58,7 +58,7 @@ def run(spark, df):
         "save_dir": os.path.join(
             filepath, "./results"
         ),  # directory for storing processed data, predictions and plots
-        "epochs": 5,
+        "epochs": 500,
         "batch_size": 64,
         "learning_rate": 0.001,
         "hidden_units": 32,  # number of units for each MLP layer
@@ -94,7 +94,7 @@ def preprocess_data(spark, params, df):
     )
 
     # split into train, test data
-    df_taxi_filtered = spark.createDataFrame(df_taxi_filtered.limit(20).collect())
+    df_taxi_filtered = spark.createDataFrame(df_taxi_filtered.collect())
     df_train, df_test = df_taxi_filtered.randomSplit([0.8, 0.2], seed=42)
 
     # create pipeline for scaling train and test data
