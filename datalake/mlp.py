@@ -148,7 +148,7 @@ class MLP(Model):
 
         df_train_features = df_train["scaled_features"].apply(pd.Series)
         df_test_features = df_test["scaled_features"].apply(pd.Series)
-        print(df_train_features.head())
+        # print(df_train_features.head())
 
         # convert df into numpy array
         self.train_x = np.array(df_train_features["values"].to_numpy().tolist())

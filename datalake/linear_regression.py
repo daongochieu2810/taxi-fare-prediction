@@ -61,6 +61,6 @@ def run(spark, data):
     lr_model = lr.fit(train_data)
     test_results = lr_model.evaluate(test_data)
     test_results.residuals.show()
-    test_results.rootMeanSquaredError
-    test_results.r2
-    final_data.describe().show()
+    print("RMSE: " + str(test_results.rootMeanSquaredError))
+    print("R2: " + str(test_results.r2))
+    # final_data.describe().show()

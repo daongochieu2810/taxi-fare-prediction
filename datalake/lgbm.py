@@ -1,4 +1,5 @@
 from pyspark.ml.regression import RandomForestRegressor
+from pyspark.ml.evaluation import RegressionEvaluator
 from pyspark.ml.feature import VectorAssembler
 import pyspark.sql.functions as F
 from pyspark.sql.functions import col
@@ -60,11 +61,17 @@ def run(spark, data):
 
     train_data, test_data = final_data.randomSplit([0.8, 0.2])
 
-    train_data.describe().show()
-    test_data.describe().show()
+    # train_data.describe().show()
+    # test_data.describe().show()
 
     rf = RandomForestRegressor(featuresCol="features", labelCol="total_amount")
     rf_model = rf.fit(train_data)
 
     predictions = rf_model.transform(test_data)
     predictions.show(25)
+
+    rfevaluator = RegressionEvaluator(
+        predictionCol="prediction", labelCol="total_amount", metricName="rmse"
+    )
+
+    print("RMSE:", rfevaluator.evaluate(predictions))

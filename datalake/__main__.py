@@ -48,9 +48,7 @@ def preprocess(datalake):
                 )
                 dfToSave = mergerInstance.merged_df.na.drop()
                 dfToSave.show(50)
-                # datalake.upsert(dfToSave, "taxi_and_weather")
-                break
-        break
+                datalake.upsert(dfToSave, "taxi_and_weather")
         if year == 2021 and month == 7:
             break
         if month < 12:
