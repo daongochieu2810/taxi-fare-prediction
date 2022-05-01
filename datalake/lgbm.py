@@ -66,7 +66,8 @@ def evaluateLGBM(spark, train_data, test_data):
     rfcvModel = rfcv.fit(train_data)
     print(rfcvModel)
     rfpredictions = rfcvModel.transform(test_data)
-    print('RMSE:', rfevaluator.evaluate(rfpredictions) - 0.699)
+    RMSE = rfevaluator.evaluate(rfpredictions)
+    print('RMSE:', RMSE)
 
     rfpredictions.head()
     print(rfcvModel.subModels)
@@ -87,8 +88,6 @@ def evaluateLGBM(spark, train_data, test_data):
     plt.xlabel('True Values', fontsize=15)
     plt.ylabel('Predictions', fontsize=15)
     plt.axis('equal')
-    plt.text(20, 15, 'RMSE = 1.08', fontsize = 22, 
-            bbox = dict(facecolor = 'white', alpha = 0.5))
     plt.show()
 
 '''
