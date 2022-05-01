@@ -43,10 +43,10 @@ class DataLake:
                 "org.apache.hudi:hudi-spark3.0.3-bundle_2.12:0.10.1,org.apache.spark:spark-avro_2.12:3.0.3,org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.1",
             )
             .config("spark.sql.hive.convertMetastoreParquet", "false")
-            # .config("spark.sql.hive.metastore.sharedPrefixes", "org.apache.derby")
-            # .config("hive.metastore.uris", "thrift://localhost:9083")
+            .config("spark.sql.hive.metastore.sharedPrefixes", "org.apache.derby")
+            .config("hive.metastore.uris", "thrift://localhost:9083")
             .config("spark.sql.analyzer.failAmbiguousSelfJoin", "false")
-            # .enableHiveSupport()
+            .enableHiveSupport()
             .getOrCreate()
         )
         self.spark.sparkContext.addPyFile("./datalake/merger.py")
